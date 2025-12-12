@@ -12,7 +12,7 @@ class FileCorrupted(Exception):
 
 
 logger = logging.getLogger(__name__)
-if not logger.handlers:
+if not logger.handlers:  
     handler = logging.StreamHandler()
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
@@ -20,11 +20,11 @@ if not logger.handlers:
     logger.setLevel(logging.INFO)
 
 
+
 def logged(exception_type, mode="console"):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-           
             logger.info(f"Виконання операції: {func.__name__}")
             try:
                 result = func(*args, **kwargs)
@@ -45,50 +45,52 @@ class XMLHandler:
         if not file_path.endswith(".xml"):
             raise FileCorrupted("Файл не є XML")
 
-    @logged(FileCorrupted, mode="console")
+    @logged(FileCorrupted)
     def read(self):
         try:
             tree = ET.parse(self.file_path)
             root = tree.getroot()
-            
-         
+
             result = {}
             for child in root:
                 if child.tag in result:
-                  
                     if not isinstance(result[child.tag], list):
                         result[child.tag] = [result[child.tag]]
                     result[child.tag].append(child.text)
                 else:
                     result[child.tag] = child.text
+
             return result
+
         except Exception as e:
             raise FileCorrupted(f"Файл пошкоджено: {self.file_path} ({e})")
 
-    @logged(FileCorrupted, mode="console")
+    @logged(FileCorrupted)
     def write(self, data: dict):
         root = ET.Element("store")
         for key, value in data.items():
             el = ET.SubElement(root, key)
             el.text = str(value)
+
         tree = ET.ElementTree(root)
         tree.write(self.file_path, encoding="utf-8", xml_declaration=True)
         print("Дані записано")
         print("Записані дані:", data)
 
-    @logged(FileCorrupted, mode="console")
+    @logged(FileCorrupted)
     def append(self, data: dict):
         try:
             tree = ET.parse(self.file_path)
             root = tree.getroot()
+
             for key, value in data.items():
                 el = ET.SubElement(root, key)
                 el.text = str(value)
+
             tree.write(self.file_path, encoding="utf-8", xml_declaration=True)
             print("Дані дописано")
         except Exception as e:
             raise FileCorrupted(f"Файл пошкоджено: {self.file_path} ({e})")
-
 
 
 def main():
