@@ -11,26 +11,20 @@ class FileCorrupted(Exception):
 
 
 
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+
+
 def logged(exception_type, mode="console"):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            logger = logging.getLogger(func.__name__)
-            logger.setLevel(logging.INFO)
-            if logger.hasHandlers():
-                logger.handlers.clear()
-
-            if mode == "console":
-                handler = logging.StreamHandler()
-            elif mode == "file":
-                handler = logging.FileHandler("xml_log.txt", encoding="utf-8")
-            else:
-                raise ValueError("Невідомий режим логування")
-
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-
+           
             logger.info(f"Виконання операції: {func.__name__}")
             try:
                 result = func(*args, **kwargs)
@@ -41,7 +35,6 @@ def logged(exception_type, mode="console"):
                 raise
         return wrapper
     return decorator
-
 
 
 class XMLHandler:
@@ -57,7 +50,18 @@ class XMLHandler:
         try:
             tree = ET.parse(self.file_path)
             root = tree.getroot()
-            return {child.tag: child.text for child in root}
+            
+         
+            result = {}
+            for child in root:
+                if child.tag in result:
+                  
+                    if not isinstance(result[child.tag], list):
+                        result[child.tag] = [result[child.tag]]
+                    result[child.tag].append(child.text)
+                else:
+                    result[child.tag] = child.text
+            return result
         except Exception as e:
             raise FileCorrupted(f"Файл пошкоджено: {self.file_path} ({e})")
 
@@ -70,7 +74,7 @@ class XMLHandler:
         tree = ET.ElementTree(root)
         tree.write(self.file_path, encoding="utf-8", xml_declaration=True)
         print("Дані записано")
-        print(" Записані дані:", data)
+        print("Записані дані:", data)
 
     @logged(FileCorrupted, mode="console")
     def append(self, data: dict):
@@ -87,52 +91,57 @@ class XMLHandler:
 
 
 
-print(" Тест 1: Неіснуючий файл ")
-try:
-    handler = XMLHandler("nonexistent.xml")
-except FileNotFound as e:
-    print("Спіймано виняток:", e)
+def main():
+    print("Тест 1: Неіснуючий файл")
+    try:
+        handler = XMLHandler("nonexistent.xml")
+    except FileNotFound as e:
+        print("Спіймано виняток:", e)
 
-print("\n Тест 2: Створення обробника ")
-test_file = "store_data.xml"
-if not os.path.exists(test_file):
-    root = ET.Element("store")
-    ET.SubElement(root, "initial").text = "new"
-    ET.SubElement(root, "status").text = "opened"
-    ET.ElementTree(root).write(test_file, encoding="utf-8", xml_declaration=True)
-print("Обробник створено для файлу:", test_file)
+    print("\nТест 2: Створення обробника")
+    test_file = "store_data.xml"
+    if not os.path.exists(test_file):
+        root = ET.Element("store")
+        ET.SubElement(root, "initial").text = "new"
+        ET.SubElement(root, "status").text = "opened"
+        ET.ElementTree(root).write(test_file, encoding="utf-8", xml_declaration=True)
+    print("Обробник створено для файлу:", test_file)
 
-handler = XMLHandler(test_file)
+    handler = XMLHandler(test_file)
 
-print("\n Тест 3: Читання файлу ")
-data = handler.read()
-print("Прочитано дані:", data)
+    print("\nТест 3: Читання файлу")
+    data = handler.read()
+    print("Прочитано дані:", data)
 
-print("\n Тест 4: Запис у файл ")
-new_data = {
-    "store_name": "TechMarket",
-    "location": "Львів",
-    "owner": "Марія Сидоренко",
-    "products": "Ноутбуки, Смартфони, Аксесуари",
-    "sales": 150
-}
-handler.write(new_data)
+    print("\nТест 4: Запис у файл")
+    new_data = {
+        "store_name": "TechMarket",
+        "location": "Львів",
+        "owner": "Марія Сидоренко",
+        "products": "Ноутбуки, Смартфони, Аксесуари",
+        "sales": 150
+    }
+    handler.write(new_data)
 
-print("\n Тест 5: Дописування у файл ")
-extra_data = {
-    "new_product": "Ігрова консоль",
-    "monthly_profit": "25000 USD"
-}
-handler.append(extra_data)
-final = handler.read()
-print("  Фінальні дані:", final)
+    print("\nТест 5: Дописування у файл")
+    extra_data = {
+        "new_product": "Ігрова консоль",
+        "monthly_profit": "25000 USD"
+    }
+    handler.append(extra_data)
+    final = handler.read()
+    print("Фінальні дані:", final)
 
-print("\n Тест 6: Пошкоджений XML файл ")
-with open("corrupted.xml", "w", encoding="utf-8") as f:
-    f.write("<store><broken><data>")  
+    print("\nТест 6: Пошкоджений XML файл")
+    with open("corrupted.xml", "w", encoding="utf-8") as f:
+        f.write("<store><broken><data>")
 
-try:
-    broken_handler = XMLHandler("corrupted.xml")
-    broken_handler.read()
-except FileCorrupted as e:
-    print("Спіймано виняток:", e)
+    try:
+        broken_handler = XMLHandler("corrupted.xml")
+        broken_handler.read()
+    except FileCorrupted as e:
+        print("Спіймано виняток:", e)
+
+
+if __name__ == "__main__":
+    main()
