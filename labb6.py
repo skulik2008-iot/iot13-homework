@@ -4,23 +4,27 @@ import xml.etree.ElementTree as ET
 from functools import wraps
 
 
+
 class FileNotFound(Exception):
     pass
 
+
 class FileCorrupted(Exception):
     pass
+
 
 
 logger = logging.getLogger("xml_logger")
 logger.setLevel(logging.INFO)
 
 if not logger.handlers:
-    console_handler = logging.StreamHandler()
+    handler = logging.StreamHandler()
     formatter = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(message)s'
+        "%(asctime)s - %(levelname)s - %(message)s"
     )
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
 
 
 def logged(exception_type=Exception):
@@ -37,6 +41,7 @@ def logged(exception_type=Exception):
                 raise
         return wrapper
     return decorator
+
 
 
 class XMLHandler:
@@ -68,7 +73,7 @@ class XMLHandler:
             return result
 
         except Exception as e:
-            raise FileCorrupted(f"File is corrupted: {self.file_path} ({e})")
+            raise FileCorrupted(f"Файл пошкоджено: {self.file_path} ({e})")
 
 
     @logged(FileCorrupted)
@@ -79,11 +84,9 @@ class XMLHandler:
                 el = ET.SubElement(root, key)
                 el.text = str(value)
 
-            tree = ET.ElementTree(root)
-            tree.write(self.file_path, encoding="utf-8", xml_declaration=True)
-
-            print("Дані записано")
-            print("Записані дані:", data)
+            ET.ElementTree(root).write(
+                self.file_path, encoding="utf-8", xml_declaration=True
+            )
 
         except Exception as e:
             raise FileCorrupted(f"Помилка запису у файл: {e}")
@@ -100,10 +103,10 @@ class XMLHandler:
                 el.text = str(value)
 
             tree.write(self.file_path, encoding="utf-8", xml_declaration=True)
-            print("Дані дописано")
 
         except Exception as e:
             raise FileCorrupted(f"Файл пошкоджено: {self.file_path} ({e})")
+
 
 
 def main():
@@ -113,47 +116,57 @@ def main():
     except FileNotFound as e:
         print("Спіймано виняток:", e)
 
-    print("\nТест 2: Створення обробника")
+    print("\nТест 2: Створення коректного XML")
     test_file = "store_data.xml"
 
     if not os.path.exists(test_file):
         root = ET.Element("store")
         ET.SubElement(root, "initial").text = "new"
         ET.SubElement(root, "status").text = "opened"
-        ET.ElementTree(root).write(test_file, encoding="utf-8", xml_declaration=True)
+        ET.ElementTree(root).write(
+            test_file, encoding="utf-8", xml_declaration=True
+        )
 
     handler = XMLHandler(test_file)
-    print("Обробник створено для файлу:", test_file)
+    print("Обробник створено")
 
-    print("\nТест 3: Читання файлу")
-    data = handler.read()
-    print("Прочитано дані:", data)
+    print("\nТест 3: Читання")
+    print(handler.read())
 
-    print("\nТест 4: Запис у файл")
+    print("\nТест 4: Запис")
     handler.write({
         "store_name": "TechMarket",
         "location": "Львів",
-        "owner": "Марія Сидоренко",
         "sales": 150
     })
+    print("Запис виконано")
 
-    print("\nТест 5: Дописування у файл")
+    print("\nТест 5: Дописування")
     handler.append({
         "new_product": "Ігрова консоль",
         "monthly_profit": "25000 USD"
     })
+    print("Дописування виконано")
 
-    print("Фінальні дані:", handler.read())
+    print("\nФінальні дані:")
+    print(handler.read())
 
-    print("\nТест 6: Пошкоджений XML файл")
+    print("\nТест 6: Пошкоджений XML")
     with open("corrupted.xml", "w", encoding="utf-8") as f:
-        f.write("<store><broken><data>")
+        f.write("<store><broken>")
 
     try:
         XMLHandler("corrupted.xml").read()
     except FileCorrupted as e:
         print("Спіймано виняток:", e)
 
+    
+    for test_file in ["store_data.xml", "corrupted.xml"]:
+        if os.path.exists(test_file):
+            os.remove(test_file)
+
 
 if __name__ == "__main__":
     main()
+
+    
