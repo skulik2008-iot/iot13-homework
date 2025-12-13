@@ -68,7 +68,7 @@ class XMLHandler:
             return result
 
         except Exception as e:
-            raise FileCorrupted(f"Файл пошкоджено: {self.file_path} ({e})")
+            raise FileCorrupted(f"File is corrupted: {self.file_path} ({e})")
 
 
     @logged(FileCorrupted)
